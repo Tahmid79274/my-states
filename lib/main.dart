@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:states/new_contact_view.dart';
+import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,23 +22,53 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  ValueNotifier<List<Contact>> contacts = ValueNotifier<List<Contact>>([]);
+
+  @override
   Widget build(BuildContext context) {
-    final contactBook = ContactBook();
     return Scaffold(
       appBar: AppBar(title: const Text('Home Page')),
-      body: ListView.builder(
-        itemCount: contactBook.length,
-        itemBuilder: (context, index) {
-          final contact = contactBook.getContact(index: index)!;
-          return ListTile(title: Text(contact.name));
+      body: ValueListenableBuilder(
+        valueListenable: ContactBook(),
+        builder: (
+          BuildContext contactContext,
+          List<Contact> listOfContacts,
+          child,
+        ) {
+          final contacts = listOfContacts;
+          return ListView.builder(
+            itemCount: listOfContacts.length,
+            itemBuilder: (context, index) {
+              final contact = listOfContacts[index];
+              return Dismissible(
+                onDismissed: (direction) {
+                  // ContactBook().removeContact(contact: contact);
+                  listOfContacts.remove(contact);
+                },
+                key: ValueKey(contact.id),
+                child: ListTile(
+                  title: Text(contact.name),
+                  tileColor: Colors.amber,
+                ),
+              );
+            },
+          );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => NewContactView()));
+        },
         child: Icon(Icons.add),
       ),
     );
@@ -44,28 +76,31 @@ class HomePage extends StatelessWidget {
 }
 
 class Contact {
+  final String id;
   final String name;
-  const Contact({required this.name});
+  Contact({required this.name}) : id = Uuid().v4();
 }
 
-class ContactBook {
-  ContactBook._sharedInstance();
+class ContactBook extends ValueNotifier<List<Contact>> {
+  ContactBook._sharedInstance() : super([]);
   static final ContactBook _shared = ContactBook._sharedInstance();
   factory ContactBook() => _shared;
 
   final List<Contact> _contacts = [];
 
-  int get length => _contacts.length;
+  int get length => value.length;
 
   void addContact({required Contact contact}) {
-    _contacts.add(contact);
+    value.add(contact);
+    notifyListeners();
   }
 
   void removeContact({required Contact contact}) {
-    _contacts.remove(contact);
+    value.remove(contact);
+    notifyListeners();
   }
 
   Contact? getContact({required int index}) {
-    return index < _contacts.length ? _contacts[index] : null;
+    return index < value.length ? value[index] : null;
   }
 }
